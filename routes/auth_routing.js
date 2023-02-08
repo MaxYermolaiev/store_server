@@ -1,18 +1,28 @@
 const express = require('express');
 const auth_routing = express.Router();
 const helper = require("./../helpers/helper");
-const {auth_checking,user_authorization,user_authentication} = require('../middleware/AuthMiddleware')
+const {landing_middleware,auth_checking,user_authentication} = require('../middleware/AuthMiddleware')
 const UserData = require("../db/schemas/user_schema");
 const adminSchema = require("../db/schemas/adminSchema");
 const jwt = require('jsonwebtoken')
 const bcrypt = require("bcryptjs")
+const fail_validation_report = require("../db/schemas/fail_validation_report");
 
 //General path - http://localhost:3000/api/
 class Authentication {
+   landing(req,res){
+      try{
+        let {token,x_token} =  req.credentials;
+
+         res.sendStatus(200)
+      }catch (e) {
+         return res.status(500).json({message:'bcvcbc side error'});
+      }
+   }
    //when app has been launched in first check token and send response
    async check_user(req,res){
       try{
-         return res.status(200).json({message:'OK'});
+         return res.status(200).json({message:res.credential});
       }catch (e) {
          return res.status(500).json({message:'Unexpected server error'});
       }
@@ -29,8 +39,6 @@ class Authentication {
       try{
          //destruct credentials in case missing send error
          const {email,password} = req.credentials;
-
-
          const candidate = await UserData.findOne({email});
 
          if(!candidate){
@@ -40,7 +48,7 @@ class Authentication {
          let passwordCompareError =await bcrypt.compare(password,candidate.password)
 
          if(!passwordCompareError){
-            return res.status(400).json({message: 'Invalid credentials', errors:{password: "password is not correct"}})
+            return res.status(400).json({message: 'Invalid credentials', errors:{password: "Password is not correct"}})
          }
          //if ok, compare hash password with received, and send error if not ok
 
@@ -56,26 +64,27 @@ class Authentication {
 
    async authorize(req,res){
       //destruct prop and check all fields
-      const {password, email, phone, firstname, lastname} = req.body;
-      if(!password||!email||!phone||!firstname||!lastname){
-         return res.status(400).json({message:"User fields filed not correct"});
+      //const {password, email, phone, firstname, lastname} = req.body;
+      const fields_to_check = ["password, email, phone, firstname, lastname"]
+      if(!firstname||!lastname||!password||!email||!phone){
+         return res.status(400).json({message:"Some of fields fileds is not provided, validations not occured"});
       }
-
 
       try{
          const candidate = await UserData.findOne({email});
          if(candidate){
-            return res.status(400).json({message:"User already exist!,create user with another credentials"});
+            return res.status(400).json({message:"User already exist!,create user with another credentials",errors:{email:"user already exist"}});
          }
          //try find user with such email, if exist send error
          let hashPassword = await bcrypt.hash(password,12);
          const new_user = new UserData({password:hashPassword, email, phone, firstname, lastname});
-         await new_user.save();
-         //else create new user and send 201 success status'
 
+         await new_user.save();
+
+         //else create new user and send 201 success status'
          return res.status(201).json({message:'New user successfully created'})
       }catch (e) {
-         return res.status(500).json({message:'Server side error'})}
+         return res.status(500).json({message:'User validation error',errors:fail_validation_report(e)})}
       }
 
    async restore(req,res){
@@ -149,11 +158,14 @@ class Authentication {
 }
 
 const authentication = new Authentication();
+
+auth_routing.get("/landing",landing_middleware,authentication.landing);//use for first launch and user data update
 auth_routing.get("/logout",auth_checking,authentication.logout);//use for user token validatonn after app launch
 auth_routing.get("/check-user",auth_checking,authentication.check_user);//use for user token validatonn after app launch
+auth_routing.post("/authorize", authentication.authorize);
 auth_routing.post("/authenticate",user_authentication,authentication.authenticate);
 auth_routing.post("/restore",authentication.restore)
-auth_routing.post("/authorize",user_authorization,authentication.authorize);
+auth_routing.post("/authorize",authentication.authorize);
 //----------admin auth--------------------//
 auth_routing.post("/admin/authorize", authentication.createAdmin);
 auth_routing.post("/admin/authenticate", user_authentication, authentication.authAdmin);

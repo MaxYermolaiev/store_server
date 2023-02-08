@@ -1,15 +1,14 @@
 const {Schema, Types, model} = require("mongoose");
 
 const category_schema = new Schema({
-    name: {
+    category: {
         type: String,
-        required: [true, 'category is required'],
+        required: true,
         unique: [true,'category already exist']
     },
     src: {
         type: String,
         default: 'https://cdn.jetphotos.com/400/6/97621_1643277460.jpg?v=0',
-        unique: true
     },
     goods: {
         ref: 'GoodsSchema',

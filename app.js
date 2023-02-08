@@ -7,7 +7,7 @@ const cors=require("cors");
 const CustomError = require ('./middleware/custom_error');
 const db_init = require ('./db/db');
 const limiter = require ('./middleware/limiter');
-
+const debug = require('debug')
 const session = require("express-session");
 const session_options = require("./session/options");
 //middleware
@@ -49,18 +49,17 @@ app.use((error,req,res,next)=>{
     if(error instanceof CustomError){
         return res.status(error.status).json({message:error.message})
     }
-    return res.status(500).json({message:"Server feels badly, bring a pill and beer"})
+    return res.status(500).json({message:"Unhandled server error"})
 });
 bindErrorHandlers(logger);//bind unhandled rejection errors in promises
 //
 //app running
 let timer;
 async function riseServer(){
-
-    console.log("Starting server")
     try{
         app.listen(port,()=>{logger.info("Logger: server was run")})
         await db_init();
+        console.log("Server raised")
         clearInterval(timer);
     }catch (e) {
         timer = setInterval(()=> riseServer(),10000);

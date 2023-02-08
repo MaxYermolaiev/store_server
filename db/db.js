@@ -10,14 +10,15 @@ const mongooseOptions = {
     useNewUrlParser: true,
     //useCreateIndex: true,
 };
-
+//tune mongoose for correct work
+mongoose.set('strictQuery', true);
 const db_init=async ()=>{
-        mongoose.set('strictQuery', true);
-        await mongoose.connect(process.env.URI, mongooseOptions,(error)=>{
-            if(error){
-                throw new CustomError("DB is unreachable or some bug occurred");
-            }
-        });
+    try{
+        await mongoose.connect(process.env.URI, mongooseOptions);
+    }catch({message}){
+        console.log(message);
+        throw new CustomError("DB is unreachable or some bug occurred");
+    }
 }
 
 module.exports = db_init ;
